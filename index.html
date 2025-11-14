@@ -2,20 +2,21 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Aplikasi Uang Kas / Iuran Bulanan</title>
+<title>Aplikasi Uang Kas - FULL UPDATED</title>
 <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    .box { border: 1px solid #ccc; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #aaa; padding: 8px; }
-    th { background: #eee; }
-    input, button { padding: 8px; margin: 3px 0; }
-    button { cursor: pointer; }
+ body { font-family: Arial, sans-serif; padding: 20px; }
+ .box { border: 1px solid #ccc; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+ table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+ th, td { border: 1px solid #aaa; padding: 8px; }
+ th { background: #eee; }
+ input, button, select { padding: 8px; margin: 4px 0; }
+ button { cursor: pointer; }
+ .search-input { width: 250px; }
+ canvas { margin-top: 20px; }
 </style>
 </head>
 <body>
-
-<h1>Aplikasi Uang Kas / Iuran Bulanan</h1>
+<h1>Aplikasi Uang Kas / Iuran Bulanan (FULL UPDATED)</h1>
 
 <div id="viewBox" class="box">
     <h2>Akses Melihat Data</h2>
@@ -24,11 +25,21 @@
 </div>
 
 <div id="app" style="display:none;">
+
     <div class="box">
         <h2>Tambah Data Baru</h2>
         <input id="nameInput" placeholder="Nama">
         <input id="amountInput" type="number" placeholder="Jumlah iuran">
         <button onclick="addEntry()">Tambah</button>
+    </div>
+
+    <div class="box">
+        <h2>Fitur Tambahan</h2>
+        <input id="searchInput" class="search-input" placeholder="Cari nama..." oninput="searchData()">
+        <button onclick="sortByName()">Urutkan Nama A-Z</button>
+        <button onclick="sortByAmount()">Urutkan Jumlah</button>
+        <button onclick="exportExcel()">Export Excel</button>
+        <button onclick="downloadPDF()">Download PDF</button>
     </div>
 
     <div class="box">
@@ -43,13 +54,39 @@
             </thead>
             <tbody id="tableBody"></tbody>
         </table>
-
         <h3>Total: Rp <span id="totalValue">0</span></h3>
+    </div>
+
+    <div class="box">
+        <h2>Rekap Per Orang</h2>
+        <ul id="recapList"></ul>
+    </div>
+
+    <div class="box">
+        <h2>Grafik Pembayaran</h2>
+        <canvas id="chartCanvas" width="400" height="200"></canvas>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
 <script>
-let entries = [];
+let entries = JSON.parse(localStorage.getItem("uangKasData") || "[]");
+let filteredEntries = [...entries];
+let chart;
+
+window.onload = () => {
+    if (entries.length > 0) {
+        renderTable();
+        updateRecap();
+        drawChart();
+    }
+};
+
+function saveData() {
+    localStorage.setItem("uangKasData", JSON.stringify(entries));
+}
 
 function startViewing() {
     const name = document.getElementById("viewerName").value.trim();
@@ -66,19 +103,24 @@ function addEntry() {
     if (!name || !amount) return alert("Isi nama dan jumlah!");
 
     entries.push({ id: Date.now(), name, amount });
+    filteredEntries = [...entries];
+
     document.getElementById("nameInput").value = "";
     document.getElementById("amountInput").value = "";
 
+    saveData();
     renderTable();
+    updateRecap();
+    drawChart();
 }
 
-function renderTable() {
+function renderTable(list = filteredEntries) {
     const tbody = document.getElementById("tableBody");
     tbody.innerHTML = "";
 
     let total = 0;
 
-    entries.forEach(e => {
+    list.forEach(e => {
         total += e.amount;
 
         const row = `
@@ -86,8 +128,7 @@ function renderTable() {
                 <td><input value="${e.name}" onchange="editEntry(${e.id}, 'name', this.value)"></td>
                 <td><input type="number" value="${e.amount}" onchange="editEntry(${e.id}, 'amount', this.value)"></td>
                 <td><button onclick="deleteEntry(${e.id})">Hapus</button></td>
-            </tr>
-        `;
+            </tr>`;
 
         tbody.innerHTML += row;
     });
@@ -97,14 +138,89 @@ function renderTable() {
 
 function editEntry(id, field, value) {
     entries = entries.map(e => e.id === id ? { ...e, [field]: field === "amount" ? Number(value) : value } : e);
+    filteredEntries = [...entries];
+    saveData();
     renderTable();
+    updateRecap();
+    drawChart();
 }
 
 function deleteEntry(id) {
     entries = entries.filter(e => e.id !== id);
+    filteredEntries = [...entries];
+    saveData();
+    renderTable();
+    updateRecap();
+    drawChart();
+}
+
+function searchData() {
+    const keyword = document.getElementById("searchInput").value.toLowerCase();
+
+    filteredEntries = entries.filter(e =>
+        e.name.toLowerCase().includes(keyword)
+    );
+
     renderTable();
 }
+
+function sortByName() {
+    filteredEntries.sort((a, b) => a.name.localeCompare(b.name));
+    renderTable();
+}
+
+function sortByAmount() {
+    filteredEntries.sort((a, b) => a.amount - b.amount);
+    renderTable();
+}
+
+function updateRecap() {
+    const recap = {};
+    entries.forEach(e => {
+        if (!recap[e.name]) recap[e.name] = 0;
+        recap[e.name] += e.amount;
+    });
+
+    const recapList = document.getElementById("recapList");
+    recapList.innerHTML = "";
+
+    for (const name in recap) {
+        recapList.innerHTML += `<li><b>${name}</b>: Rp ${recap[name]}</li>`;
+    }
+}
+
+function drawChart() {
+    const ctx = document.getElementById("chartCanvas");
+    const labels = entries.map(e => e.name);
+    const data = entries.map(e => e.amount);
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Jumlah Iuran",
+                data: data
+            }]
+        }
+    });
+}
+
+function exportExcel() {
+    const worksheet = XLSX.utils.json_to_sheet(entries);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "UangKas");
+    XLSX.writeFile(workbook, "uang_kas.xlsx");
+}
+
+function downloadPDF() {
+    const element = document.body;
+    html2pdf().from(element).save();
+}
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 </body>
 </html>
