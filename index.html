@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Aplikasi Uang Kas / Iuran Bulanan</title>
+<style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .box { border: 1px solid #ccc; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #aaa; padding: 8px; }
+    th { background: #eee; }
+    input, button { padding: 8px; margin: 3px 0; }
+    button { cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Aplikasi Uang Kas / Iuran Bulanan</h1>
+
+<div id="viewBox" class="box">
+    <h2>Akses Melihat Data</h2>
+    <input id="viewerName" placeholder="Masukkan nama anda">
+    <button onclick="startViewing()">Lihat Data</button>
+</div>
+
+<div id="app" style="display:none;">
+    <div class="box">
+        <h2>Tambah Data Baru</h2>
+        <input id="nameInput" placeholder="Nama">
+        <input id="amountInput" type="number" placeholder="Jumlah iuran">
+        <button onclick="addEntry()">Tambah</button>
+    </div>
+
+    <div class="box">
+        <h2>Data Iuran</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nama</th>
+                    <th>Jumlah</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+
+        <h3>Total: Rp <span id="totalValue">0</span></h3>
+    </div>
+</div>
+
+<script>
+let entries = [];
+
+function startViewing() {
+    const name = document.getElementById("viewerName").value.trim();
+    if (!name) return alert("Masukkan nama terlebih dahulu!");
+
+    document.getElementById("viewBox").style.display = "none";
+    document.getElementById("app").style.display = "block";
+}
+
+function addEntry() {
+    const name = document.getElementById("nameInput").value.trim();
+    const amount = Number(document.getElementById("amountInput").value);
+
+    if (!name || !amount) return alert("Isi nama dan jumlah!");
+
+    entries.push({ id: Date.now(), name, amount });
+    document.getElementById("nameInput").value = "";
+    document.getElementById("amountInput").value = "";
+
+    renderTable();
+}
+
+function renderTable() {
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    let total = 0;
+
+    entries.forEach(e => {
+        total += e.amount;
+
+        const row = `
+            <tr>
+                <td><input value="${e.name}" onchange="editEntry(${e.id}, 'name', this.value)"></td>
+                <td><input type="number" value="${e.amount}" onchange="editEntry(${e.id}, 'amount', this.value)"></td>
+                <td><button onclick="deleteEntry(${e.id})">Hapus</button></td>
+            </tr>
+        `;
+
+        tbody.innerHTML += row;
+    });
+
+    document.getElementById("totalValue").innerText = total;
+}
+
+function editEntry(id, field, value) {
+    entries = entries.map(e => e.id === id ? { ...e, [field]: field === "amount" ? Number(value) : value } : e);
+    renderTable();
+}
+
+function deleteEntry(id) {
+    entries = entries.filter(e => e.id !== id);
+    renderTable();
+}
+</script>
+
+</body>
+</html>
